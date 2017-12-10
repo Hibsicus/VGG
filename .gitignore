@@ -1,2 +1,2 @@
-logs/train/*.*
-logs/val/*.*
+logs/train/*
+logs/val/*
