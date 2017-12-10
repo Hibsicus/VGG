@@ -45,6 +45,7 @@ def pool(layer_name, x, kernel=[1, 2, 2, 1], stride=[1, 2, 2, 1], is_max_pool=Tr
         x = tf.nn.max_pool(x, kernel, strides=stride, padding='SAME', name=layer_name)
     else:
         x = tf.nn.avg_pool(x, kernel, strides=stride, padding='SAME', name=layer_name)
+    return x
 #%%
 def batch_norm(x):
     epsilon = 1e-3
@@ -55,7 +56,7 @@ def batch_norm(x):
                                   offset=None,
                                   scale=None,
                                   variance_epsilon=epsilon)
-
+    return x
 #%%
 def FC_layer(layer_name, x, out_nodes):
     '''
@@ -103,15 +104,57 @@ def accuracy(logits, labels):
         accuracy
     '''
     with tf.name_scope('accuracy') as scope:
-        correct = tf.equal(tf.arg_max(logits, 1), tf.argmax(labels, 1))
+        correct = tf.equal(tf.argmax(logits, 1), tf.argmax(labels, 1))
         correct = tf.cast(correct, tf.float32)
         accuracy = tf.reduce_mean(correct) * 100.0
         tf.summary.scalar(scope + '/accuracy', accuracy)
         return accuracy
+#%%
+def num_correct_prediction(logits, labels):
+    correct = tf.equal(tf.argmax(logits, 1), tf.argmax(labels, 1))
+    correct  =tf.cast(correct, tf.int32)
+    n_correct = tf.reduce_sum(correct)
+    return n_correct
+
 #%%
 def optimize(loss, learning_rate, global_step):
     with tf.name_scope('optimizer'):
         optimize = tf.train.GradientDescentOptimizer(learning_rate=learning_rate)
         train_op = optimize.minimize(loss, global_step=global_step)
         return train_op
+#%%
+def test_load():
+    data_path = './/vgg16_pretrain//vgg16.npy'
+
+    data_dict = np.load(data_path, encoding='ltain1').item()
+    keys = sorted(data_dict.keys())
+    for key in keys:
+        weights = data_dict[key][0]
+        biases = data_dict[key][1]
+        print('/n')
+        print(key)
+        print('weights shape: ', weights.shape)
+        print('biases shape: ', biases.shape)
+#%%
+def load_with_skip(data_path, session, skip_layer):
+    data_dict = np.load(data_path, encoding='latin1').item()
+    for key in data_dict:
+        if key not in skip_layer:
+            with tf.variable_scope(key, reuse=True):
+                for subkey, data in zip(('weights', 'biases'), data_dict[key]):
+                    session.run(tf.get_variable(subkey).assign(data))
+#%%
+def print_all_variable(train_only=True):
+    if train_only:
+        t_vars = tf.trainable_variables()
+        print('[*] printing trainable variables')
+    else:
+        try:
+            t_vars = tf.global_variables()
+        except:
+            t_vars = tf.all_variables()
+        print('[*] printing global variables')
+    for idx, v in enumerate(t_vars):
+        print('var {:3}: {:15}   {}'.format(idx, str(v.get_shape()), v.name))
+                 
 #%%
